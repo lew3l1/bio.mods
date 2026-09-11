@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Локальная админ-панель Lew3l1 для редактирования портфолио Twitch-каналов.">
+  <title>Admin — Lew3l1 Mods</title>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <header class="site-header page-container admin-header">
+    <a class="brand" href="index.html" aria-label="Lew3l1 — главная"><span class="brand-mark" aria-hidden="true">L</span><span>LEW3L1 / ADMIN</span></a>
+    <div class="admin-actions">
+      <button class="button button-glass" id="importButton" type="button">Импорт JSON</button>
+      <button class="button button-solid" id="exportButton" type="button">Экспорт JSON</button>
+      <a class="button button-small button-glass" href="index.html">На сайт</a>
+    </div>
+    <input id="importFile" type="file" accept="application/json,.json" hidden>
+  </header>
+
+  <main class="page-container admin-page">
+    <section class="page-hero admin-hero" data-reveal>
+      <p class="eyebrow">LOCAL CMS / STREAMER PORTFOLIO</p>
+      <h1>Управляй<br><span class="muted">карточками.</span></h1>
+      <p>Редактируй сведения о модерации, статусы работы, причины завершения, роль, описание, аватар и Twitch-ссылку. Черновики хранятся в этом браузере.</p>
+    </section>
+
+    <section class="admin-toolbar" aria-label="Управление базой">
+      <div class="admin-summary">
+        <strong id="adminCount">0</strong><span>записей</span>
+        <strong id="adminDirty">0</strong><span>несохранённых</span>
+      </div>
+      <div class="admin-toolbar-actions">
+        <button class="filter-button is-active" id="addButton" type="button">+ Новый канал</button>
+        <button class="filter-button" id="resetButton" type="button">Сбросить черновики</button>
+      </div>
+    </section>
+
+    <section class="admin-layout">
+      <aside class="admin-list-panel" aria-label="Список каналов">
+        <label class="search-wrap" for="adminSearch"><span class="sr-only">Поиск каналов</span><input class="search" id="adminSearch" type="search" placeholder="Поиск username…" autocomplete="off"></label>
+        <div id="adminList" class="admin-list" aria-live="polite"></div>
+      </aside>
+
+      <section class="admin-editor" aria-label="Редактор карточки">
+        <div id="emptyEditor" class="empty-state">
+          <strong>Выбери канал</strong>
+          <span>Или создай новую карточку.</span>
+        </div>
+
+        <form id="editorForm" hidden>
+          <div class="editor-topline">
+            <div>
+              <p class="eyebrow">CHANNEL PROFILE</p>
+              <h2 id="editorTitle">@username</h2>
+            </div>
+            <button class="danger-button" id="deleteButton" type="button">Удалить</button>
+          </div>
+
+          <div class="editor-grid">
+            <label class="field"><span>Username *</span><input id="fieldUsername" name="username" required autocomplete="off"></label>
+            <label class="field"><span>Display name</span><input id="fieldDisplayName" name="displayName" autocomplete="off"></label>
+            <label class="field"><span>Год начала *</span><input id="fieldYear" name="year" inputmode="numeric" pattern="\\d{4}" required></label>
+            <label class="field"><span>Точная дата начала</span><input id="fieldStarted" name="started" type="date"></label>
+            <label class="field"><span>Роль</span><input id="fieldRole" name="role" value="Moderator"></label>
+            <label class="field"><span>Платформа</span><input id="fieldPlatform" name="platform" value="Twitch"></label>
+            <label class="field field-wide"><span>Статус моей работы</span><select id="fieldStatus" name="status"><option value="active">ACTIVE — работаю сейчас</option><option value="former_self">FORMER — снялся по своим причинам</option><option value="former_inactive">FORMER — сняли за инактив</option><option value="former">FORMER — причина не указана</option><option value="needs-confirmation">VERIFY — требуется подтверждение</option></select></label>
+            <label class="field"><span>Дата окончания</span><input id="fieldEnded" name="ended" type="date"></label>
+            <label class="field field-wide"><span>Причина завершения</span><input id="fieldEndReason" name="endReason" placeholder="Можно оставить пустым для ACTIVE"></label>
+            <label class="field field-wide"><span>Описание стримера</span><textarea id="fieldDescription" name="description" rows="5" placeholder="Кратко: кто это, формат контента, особенности канала…"></textarea></label>
+            <label class="field field-wide"><span>Аватар (URL или путь к файлу)</span><input id="fieldAvatar" name="avatar" placeholder="assets/streamers/example.webp"></label>
+            <label class="field field-wide"><span>Twitch URL</span><input id="fieldUrl" name="url" placeholder="https://twitch.tv/username" inputmode="url"></label>
+          </div>
+
+          <div class="editor-services">
+            <span>НАПРАВЛЕНИЯ РАБОТЫ</span>
+            <label><input type="checkbox" value="Moderation" data-service> Moderation</label>
+            <label><input type="checkbox" value="Chat Bot" data-service> Chat Bot</label>
+            <label><input type="checkbox" value="Channel Setup" data-service> Channel Setup</label>
+            <label><input type="checkbox" value="Automation" data-service> Automation</label>
+          </div>
+
+          <div class="editor-footer">
+            <span id="editorHint">Изменения автоматически сохраняются в черновик браузера.</span>
+            <button class="button button-solid" type="submit">Сохранить карточку</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <footer class="site-footer page-container"><span>Локальная CMS</span><span>Экспортируй JSON → замени data/streamers.json → опубликуй</span></footer>
+  <script src="js/admin.js" defer></script>
+</body>
+</html>
