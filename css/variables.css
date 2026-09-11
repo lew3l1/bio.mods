@@ -1,0 +1,17 @@
+:root {
+  color-scheme: dark;
+  --bg: #060809;
+  --surface: rgba(20, 24, 25, .68);
+  --surface-strong: rgba(25, 30, 31, .88);
+  --line: rgba(255,255,255,.10);
+  --text: #f5f7f6;
+  --muted: #8f9896;
+  --accent: #b8ff3d;
+  --accent-soft: rgba(184,255,61,.12);
+  --danger: #ff5d73;
+  --max: 1240px;
+  --radius-xl: 32px;
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --ease: cubic-bezier(.22,1,.36,1);
+}
