@@ -36,7 +36,7 @@ function cardMarkup(channel) {
   const avatar = avatarSource(channel);
 
   return `
-    <article class="channel-card" data-status="${escapeHtml(status.label.toLowerCase())">
+    <article class="channel-card" data-status="${escapeHtml(status.label.toLowerCase())}">
       <div class="channel-card-top">
         <div class="channel-avatar">
           <img class="channel-avatar-image" src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async"
