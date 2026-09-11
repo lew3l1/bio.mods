@@ -1,56 +1,111 @@
 const grid = document.querySelector('#channelGrid');
 const search = document.querySelector('#channelSearch');
 const filterButtons = [...document.querySelectorAll('[data-filter]')];
+const totalElement = document.querySelector('#channelTotal');
 let channels = [];
 let filter = 'all';
 
-const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[char]));
+const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  "'": '&#39;',
+  '"': '&quot;'
+}[char]));
+
+const getStatus = (channel) => {
+  const status = channel.status || 'needs-confirmation';
+  if (status === 'active') return { label: 'ACTIVE', className: 'status-active', note: 'Актуальность подтверждена' };
+  if (status === 'former') return { label: 'FORMER', className: 'status-former', note: 'Ранее модерировал' };
+  return { label: 'VERIFY', className: 'status-verify', note: 'Актуальность требует подтверждения' };
+};
+
+const formatStarted = (channel) => {
+  if (!channel.started) return `С ${channel.year}`;
+  const parts = channel.started.split('-');
+  if (parts.length !== 3) return channel.started;
+  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+};
+
+function cardMarkup(channel) {
+  const status = getStatus(channel);
+  const role = channel.role || 'Moderator';
+  const platform = channel.platform || 'Twitch';
+  const description = channel.description?.trim() || 'Описание стримера будет добавлено после подтверждения данных.';
+  const avatar = channel.avatar?.trim();
+  const avatarMarkup = avatar
+    ? `<img class="channel-avatar-image" src="${escapeHtml(avatar)}" alt="" loading="lazy">`
+    : `<span class="channel-avatar-fallback" aria-hidden="true">${escapeHtml(channel.username.slice(0, 2).toUpperCase())}</span>`;
+
+  return `
+    <article class="channel-card" data-status="${escapeHtml(status.label.toLowerCase())}">
+      <div class="channel-card-top">
+        <div class="channel-avatar">${avatarMarkup}</div>
+        <div class="channel-name">
+          <strong>@${escapeHtml(channel.username)}</strong>
+          <span>${escapeHtml(platform)}</span>
+        </div>
+        <span class="channel-status ${status.className}">${status.label}</span>
+      </div>
+
+      <div class="channel-card-body">
+        <div class="channel-meta-grid">
+          <div><span>ROLE</span><strong>${escapeHtml(role)}</strong></div>
+          <div><span>STARTED</span><strong>${escapeHtml(formatStarted(channel))}</strong></div>
+        </div>
+
+        <div class="channel-description-block">
+          <span>ABOUT</span>
+          <p>${escapeHtml(description)}</p>
+        </div>
+
+        <div class="channel-status-note ${status.className}">${status.note}</div>
+      </div>
+
+      <div class="channel-card-footer">
+        <span>@${escapeHtml(channel.username)}</span>
+        <a class="channel-link" href="https://twitch.tv/${encodeURIComponent(channel.username)}" target="_blank" rel="noopener noreferrer" aria-label="Открыть Twitch канал @${escapeHtml(channel.username)}">Twitch ↗</a>
+      </div>
+    </article>`;
+}
 
 function render() {
   const query = search.value.trim().toLowerCase();
   const visible = channels.filter((channel) => {
     const matchesFilter = filter === 'all' || channel.year === filter;
-    const matchesSearch = channel.username.toLowerCase().includes(query);
-    return matchesFilter && matchesSearch;
+    const searchable = `${channel.username} ${channel.displayName || ''} ${channel.description || ''}`.toLowerCase();
+    return matchesFilter && searchable.includes(query);
   });
 
-  if (!visible.length) {
-    grid.innerHTML = '<div class="empty-state">Каналы не найдены. Попробуй изменить фильтр или запрос.</div>';
-    return;
-  }
-
-  grid.innerHTML = visible.map((channel) => `
-    <article class="channel-card">
-      <div class="channel-head">
-        <div class="avatar" aria-hidden="true"></div>
-        <div class="channel-name"><strong>@${escapeHtml(channel.username)}</strong><span>Twitch</span></div>
-        <span class="channel-status">SOURCE</span>
-      </div>
-      <div class="channel-info">
-        <div class="channel-year">SINCE ${escapeHtml(channel.year)}</div>
-        <div class="channel-role">Moderator</div>
-        <p class="channel-description">Описание канала будет добавлено после подтверждения данных.</p>
-        <div class="channel-footer"><span class="channel-link">@${escapeHtml(channel.username)}</span><a class="channel-link" href="https://twitch.tv/${encodeURIComponent(channel.username)}" target="_blank" rel="noreferrer">Twitch ↗</a></div>
-      </div>
-    </article>`).join('');
+  grid.setAttribute('aria-busy', 'false');
+  grid.innerHTML = visible.length
+    ? visible.map(cardMarkup).join('')
+    : '<div class="empty-state"><strong>Ничего не найдено</strong><span>Попробуй другой запрос или сбрось фильтр.</span></div>';
 }
 
 async function init() {
   try {
-    const response = await fetch('data/streamers.json');
+    const response = await fetch('data/streamers.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     channels = await response.json();
+    totalElement.textContent = String(channels.length);
     render();
   } catch (error) {
-    grid.innerHTML = '<div class="empty-state">Не удалось загрузить базу каналов.</div>';
-    console.error(error);
+    grid.setAttribute('aria-busy', 'false');
+    grid.innerHTML = '<div class="empty-state"><strong>База каналов недоступна</strong><span>Проверь загрузку data/streamers.json.</span></div>';
+    console.error('[Lew3l1] Failed to load streamer data:', error);
   }
 }
 
 filterButtons.forEach((button) => button.addEventListener('click', () => {
-  filter = button.dataset.filter;
-  filterButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+  filter = button.dataset.filter || 'all';
+  filterButtons.forEach((item) => {
+    const active = item === button;
+    item.setAttribute('aria-pressed', String(active));
+    item.classList.toggle('is-active', active);
+  });
   render();
 }));
+
 search.addEventListener('input', render);
 init();
