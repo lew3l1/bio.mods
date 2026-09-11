@@ -14,10 +14,15 @@ const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => (
 }[char]));
 
 const getStatus = (channel) => {
-  const status = channel.status || 'needs-confirmation';
-  if (status === 'active') return { label: 'ACTIVE', className: 'status-active', note: 'Актуальность подтверждена' };
-  if (status === 'former') return { label: 'FORMER', className: 'status-former', note: 'Ранее модерировал' };
-  return { label: 'VERIFY', className: 'status-verify', note: 'Актуальность требует подтверждения' };
+  const status = channel.status || channel.workStatus || 'needs-confirmation';
+  if (status === 'active') return { label: 'ACTIVE', className: 'status-active', note: 'Сейчас работаю с каналом' };
+  if (status === 'former') {
+    const reason = channel.endReason === 'personal' ? 'Снялся по своим причинам с поста модератора' :
+      channel.endReason === 'inactive' ? 'Сняли за инактив' :
+      channel.endReason || 'Ранее модерировал';
+    return { label: 'FORMER', className: 'status-former', note: reason };
+  }
+  return { label: 'VERIFY', className: 'status-verify', note: 'Статус моей работы с каналом требует подтверждения' };
 };
 
 const formatStarted = (channel) => {
@@ -59,7 +64,7 @@ function cardMarkup(channel) {
           <p>${escapeHtml(description)}</p>
         </div>
 
-        <div class="channel-status-note ${status.className}">${status.note}</div>
+        <div class="channel-status-note ${status.className}">${escapeHtml(status.note)}</div>
       </div>
 
       <div class="channel-card-footer">
