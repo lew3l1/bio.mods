@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#07090a">
+  <meta name="theme-color" content="#08090d">
   <meta name="description" content="Lew3l1 — модератор Twitch-каналов, работа с чат-ботами и полная настройка каналов.">
   <title>Lew3l1 — Stream Moderator</title>
   <link rel="stylesheet" href="css/variables.css">
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/loader.css">
 </head>
-<body class="site-shell">
+<body class="site-shell home-page">
   <div class="page-loader" id="pageLoader" role="status" aria-live="polite" aria-label="Загрузка страницы">
     <div class="loader-inner">
       <img class="loader-art" src="assets/loader.svg" alt="Lew3l1">
@@ -23,11 +23,8 @@
     </div>
   </div>
 
-  <header class="site-header" data-reveal>
-    <a class="brand" href="index.html" aria-label="Lew3l1 — главная">
-      <span class="brand-mark" aria-hidden="true">L</span>
-      <span>LEW3L1</span>
-    </a>
+  <header class="site-header hero-chrome" data-reveal>
+    <a class="brand" href="index.html" aria-label="Lew3l1 — главная"><span class="brand-mark" aria-hidden="true">L</span><span>LEW3L1</span></a>
     <nav class="nav" aria-label="Основная навигация">
       <a class="nav-link is-active" href="index.html">Главная</a>
       <a class="nav-link" href="channels.html">Каналы</a>
@@ -39,32 +36,53 @@
 
   <main>
     <section class="hero page-container">
+      <div class="hero-scene" aria-hidden="true">
+        <div class="scene-grid scene-grid-back" data-parallax="0.08"></div>
+        <div class="scene-mist scene-mist-a" data-parallax="0.12"></div>
+        <div class="scene-mist scene-mist-b" data-parallax="0.18"></div>
+        <div class="scene-horizon" data-parallax="0.22"></div>
+        <div class="scene-crystal scene-crystal-main" data-parallax="0.34"><span></span></div>
+        <div class="scene-crystal scene-crystal-small scene-crystal-one" data-parallax="0.55"></div>
+        <div class="scene-crystal scene-crystal-small scene-crystal-two" data-parallax="0.72"></div>
+        <div class="scene-orbit orbit-a" data-parallax="0.42"></div>
+        <div class="scene-orbit orbit-b" data-parallax="0.55"></div>
+        <div class="scene-star star-one"></div><div class="scene-star star-two"></div><div class="scene-star star-three"></div><div class="scene-star star-four"></div>
+      </div>
+
       <div class="hero-copy" data-reveal>
         <p class="eyebrow"><span class="status-dot"></span> Twitch moderator · online workflow</p>
-        <h1>Я держу<br><span class="muted">чат</span><br>под контролем.</h1>
-        <p class="hero-lead">Даниил <strong>Lew3l1</strong> — модератор стриминговых каналов с 2024 года. Модерация, чат-боты и полная настройка канала в одном workflow.</p>
+        <h1>LEW3L1<br><span class="hero-role">STREAM MODERATOR</span></h1>
+        <p class="hero-lead">Даниил <strong>Lew3l1</strong> — модератор стриминговых каналов с 2024 года. Чаты, боты, автоматизация и полная настройка канала в одном workflow.</p>
         <div class="hero-actions">
           <a class="button button-solid" href="channels.html">Смотреть каналы <span aria-hidden="true">↗</span></a>
           <a class="button button-glass" href="about.html">Обо мне</a>
         </div>
       </div>
 
-      <div class="hero-visual" aria-label="Профиль Lew3l1" data-reveal>
-        <div class="orb orb-a" aria-hidden="true"></div>
-        <div class="orb orb-b" aria-hidden="true"></div>
-        <div class="glass-profile">
-          <div class="profile-topline">
-            <span>LEW3L1 / MODERATOR</span>
-            <span class="live-pill"><span class="status-dot"></span> ACTIVE</span>
-          </div>
-          <div class="profile-symbol" aria-hidden="true">L3</div>
-          <div class="profile-meta">
-            <div><span class="meta-label">FOCUS</span><strong>Chat · Bots · Setup</strong></div>
-            <div><span class="meta-label">PLATFORM</span><strong>Twitch</strong></div>
-          </div>
-          <div class="signal-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <aside class="glass-profile hero-floating-card" data-reveal data-parallax="0.13" aria-label="Профиль Lew3l1">
+        <div class="profile-topline"><span>LEW3L1 / MODERATOR</span><span class="live-pill"><span class="status-dot"></span> ACTIVE</span></div>
+        <div class="profile-symbol" aria-hidden="true">L3</div>
+        <div class="profile-meta">
+          <div><span class="meta-label">FOCUS</span><strong>Chat · Bots · Setup</strong></div>
+          <div><span class="meta-label">PLATFORM</span><strong>Twitch</strong></div>
         </div>
+        <div class="signal-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </aside>
+
+      <aside class="hero-quote glass-mini-card" data-reveal data-parallax="0.25">
+        <span class="quote-mark">“</span>
+        <p>Лучший чат — тот, о котором стримеру не приходится думать.</p>
+        <span class="quote-author">— LEW3L1</span>
+      </aside>
+
+      <div class="hero-media-dock glass-mini-card" data-reveal data-parallax="0.19" aria-label="Media dock">
+        <div class="media-thumb"><span></span></div>
+        <div class="media-copy"><span>NOW / PORTFOLIO MODE</span><strong>Moderation workflow</strong></div>
+        <span class="media-play" aria-hidden="true">▶</span>
       </div>
+
+      <div class="hero-scroll-hint" aria-hidden="true"><span>SCROLL DOWN</span><i></i></div>
+      <div class="hero-index" aria-hidden="true"><span>01</span><b></b></div>
     </section>
 
     <section class="stats page-container" data-reveal aria-label="Ключевые показатели">
