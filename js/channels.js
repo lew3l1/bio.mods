@@ -5,6 +5,7 @@ const totalElement = document.querySelector('#channelTotal');
 let channels = [];
 let filter = 'all';
 
+const AVATAR_CACHE_PREFIX = 'lew3l1.twitch.avatar.';
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;',
   "'": '&#39;', '"': '&quot;'
@@ -26,21 +27,31 @@ const formatStarted = (channel) => {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 };
 
-const avatarSource = (channel) => channel.avatar?.trim() || `https://decapi.me/twitch/avatar/${encodeURIComponent(channel.username)}`;
+const savedAvatar = (username) => {
+  try {
+    const value = sessionStorage.getItem(`${AVATAR_CACHE_PREFIX}${username.toLowerCase()}`);
+    return value || '';
+  } catch {
+    return '';
+  }
+};
+
+const fallbackAvatar = (username) => `https://unttv.vercel.app/users/${encodeURIComponent(username)}/avatar.png`;
+
+const initialAvatarSource = (channel) => channel.avatar?.trim() || savedAvatar(channel.username) || fallbackAvatar(channel.username);
 
 function cardMarkup(channel) {
   const status = getStatus(channel);
   const role = channel.role || 'Moderator';
   const platform = channel.platform || 'Twitch';
   const description = channel.description?.trim() || 'Описание стримера будет добавлено после подтверждения данных.';
-  const avatar = avatarSource(channel);
+  const avatar = initialAvatarSource(channel);
 
   return `
-    <article class="channel-card" data-status="${escapeHtml(status.label.toLowerCase())}">
+    <article class="channel-card" data-status="${escapeHtml(status.label.toLowerCase())" data-username="${escapeHtml(channel.username)}">
       <div class="channel-card-top">
         <div class="channel-avatar">
-          <img class="channel-avatar-image" src="${escapeHtml(avatar)}" alt="" loading="lazy" decoding="async"
-               onerror="this.onerror=null;this.src='assets/loader.svg';">
+          <img class="channel-avatar-image" data-avatar-for="${escapeHtml(channel.username)}" src="${escapeHtml(avatar)}" alt="Аватар @${escapeHtml(channel.username)}" loading="lazy" decoding="async">
         </div>
         <div class="channel-name">
           <strong>@${escapeHtml(channel.username)}</strong>
@@ -65,6 +76,42 @@ function cardMarkup(channel) {
     </article>`;
 }
 
+async function resolveTwitchAvatar(username) {
+  const cacheKey = `${AVATAR_CACHE_PREFIX}${username.toLowerCase()}`;
+  const cached = savedAvatar(username);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(`https://decapi.me/twitch/avatar/${encodeURIComponent(username)}`, { cache: 'no-store' });
+    const url = (await response.text()).trim();
+    if (!response.ok || !url || !/^https?:\/\//i.test(url)) throw new Error('Avatar URL unavailable');
+    try { sessionStorage.setItem(cacheKey, url); } catch {}
+    return url;
+  } catch (error) {
+    return fallbackAvatar(username);
+  }
+}
+
+async function hydrateVisibleAvatars() {
+  const images = [...grid.querySelectorAll('[data-avatar-for]')];
+  const queue = images.filter((img) => !img.closest('.channel-card')?.dataset.avatarResolved);
+  const workers = Array.from({ length: Math.min(6, queue.length) }, async () => {
+    while (queue.length) {
+      const image = queue.shift();
+      if (!image) return;
+      const username = image.dataset.avatarFor;
+      const url = await resolveTwitchAvatar(username);
+      image.src = url;
+      image.onerror = () => {
+        if (!image.src.includes('loader.svg')) image.src = 'assets/loader.svg';
+      };
+      const card = image.closest('.channel-card');
+      if (card) card.dataset.avatarResolved = 'true';
+    }
+  });
+  await Promise.all(workers);
+}
+
 function render() {
   const query = search.value.trim().toLowerCase();
   const visible = channels.filter((channel) => {
@@ -73,7 +120,10 @@ function render() {
     return matchesFilter && searchable.includes(query);
   });
   grid.setAttribute('aria-busy', 'false');
-  grid.innerHTML = visible.length ? visible.map(cardMarkup).join('') : '<div class="empty-state"><strong>Ничего не найдено</strong><span>Попробуй другой запрос или сбрось фильтр.</span></div>';
+  grid.innerHTML = visible.length
+    ? visible.map(cardMarkup).join('')
+    : '<div class="empty-state"><strong>Ничего не найдено</strong><span>Попробуй другой запрос или сбрось фильтр.</span></div>';
+  if (visible.length) hydrateVisibleAvatars();
 }
 
 async function init() {
