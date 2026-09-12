@@ -6,8 +6,11 @@ const totalYearsElement = document.querySelector('#channelYears');
 let channels = [];
 let filter = 'all';
 
+// Removed from the public portfolio. Keep only the canonical yo_kris entry.
+const HIDDEN_USERNAMES = new Set(['emochkka', 'yo_kris_']);
+
 const AVATAR_CACHE_PREFIX = 'lew3l1.twitch.avatar.';
-const escapeHtml = (value = '') => String(value).replace(/[&<>\'"]/g, (char) => ({
+const escapeHtml = (value = '') => String(value).replace(/[&<>\'\"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;',
   "'": '&#39;', '"': '&quot;'
 }[char]));
@@ -119,6 +122,7 @@ async function hydrateVisibleAvatars() {
 function render() {
   const query = search.value.trim().toLowerCase();
   const visible = channels.filter((channel) => {
+    if (HIDDEN_USERNAMES.has(String(channel.username).toLowerCase())) return false;
     const matchesFilter = filter === 'all' || channel.year === filter;
     const searchable = `${channel.username} ${channel.displayName || ''} ${channel.description || ''} ${channel.role || ''}`.toLowerCase();
     return matchesFilter && searchable.includes(query);
@@ -134,8 +138,9 @@ async function init() {
     const response = await fetch('data/streamers.json', { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     channels = await response.json();
-    totalElement.textContent = String(channels.length);
-    const years = [...new Set(channels.map((channel) => Number(channel.year)).filter(Boolean))].sort((a, b) => a - b);
+    const publicChannels = channels.filter((channel) => !HIDDEN_USERNAMES.has(String(channel.username).toLowerCase()));
+    totalElement.textContent = String(publicChannels.length);
+    const years = [...new Set(publicChannels.map((channel) => Number(channel.year)).filter(Boolean))].sort((a, b) => a - b);
     if (totalYearsElement && years.length) totalYearsElement.textContent = `${years[0]}–${years[years.length - 1]}`;
     render();
   } catch (error) {
