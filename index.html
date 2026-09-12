@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/responsive.css">
   <link rel="stylesheet" href="css/loader.css">
+  <link rel="stylesheet" href="css/home.css">
 </head>
 <body class="site-shell home-page">
   <div class="page-loader" id="pageLoader" role="status" aria-live="polite" aria-label="Загрузка страницы">
@@ -26,7 +27,7 @@
   <header class="site-header hero-chrome" data-reveal>
     <a class="brand" href="index.html" aria-label="Lew3l1 — главная"><span class="brand-mark" aria-hidden="true">L</span><span>LEW3L1</span></a>
     <nav class="nav" aria-label="Основная навигация">
-      <a class="nav-link is-active" href="index.html">Главная</a>
+      <a class="nav-link is-active" href="index.html" aria-current="page">Главная</a>
       <a class="nav-link" href="channels.html">Каналы</a>
       <a class="nav-link" href="about.html">Обо мне</a>
       <a class="nav-link" href="contact.html">Контакты</a>
@@ -75,11 +76,11 @@
         <span class="quote-author">— LEW3L1</span>
       </aside>
 
-      <div class="hero-media-dock glass-mini-card" data-reveal data-parallax="0.19" aria-label="Media dock">
-        <div class="media-thumb"><span></span></div>
-        <div class="media-copy"><span>NOW / PORTFOLIO MODE</span><strong>Moderation workflow</strong></div>
+      <button class="hero-media-dock glass-mini-card" data-reveal data-parallax="0.19" type="button" aria-label="Переключить режим workflow" aria-pressed="false">
+        <span class="media-thumb" aria-hidden="true"><span></span></span>
+        <span class="media-copy"><span>NOW / PORTFOLIO MODE</span><strong>Moderation workflow</strong></span>
         <span class="media-play" aria-hidden="true">▶</span>
-      </div>
+      </button>
 
       <div class="hero-scroll-hint" aria-hidden="true"><span>SCROLL DOWN</span><i></i></div>
       <div class="hero-index" aria-hidden="true"><span>01</span><b></b></div>
