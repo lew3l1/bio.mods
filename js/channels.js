@@ -1,164 +1,28 @@
-const grid = document.querySelector('#channelGrid');
-const search = document.querySelector('#channelSearch');
-const filterButtons = [...document.querySelectorAll('[data-filter]')];
-const totalElement = document.querySelector('#channelTotal');
-const totalYearsElement = document.querySelector('#channelYears');
-let channels = [];
-let filter = 'all';
-
-// Removed from the public portfolio. Keep only the canonical yo_kris entry.
-const HIDDEN_USERNAMES = new Set(['emochkka', 'yo_kris_']);
-
-const AVATAR_CACHE_PREFIX = 'lew3l1.twitch.avatar.';
-const escapeHtml = (value = '') => String(value).replace(/[&<>\'\"]/g, (char) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;',
-  "'": '&#39;', '"': '&quot;'
-}[char]));
-
-const getWorkStatus = (channel) => {
-  const status = channel.workStatus || 'active';
-  const map = {
-    active: { label: 'ACTIVE', className: 'status-active', note: 'Работаю с каналом' },
-    former_self: { label: 'FORMER', className: 'status-former', note: channel.workNote || 'Снялся по своим причинам с поста модератора' },
-    former_streamer: { label: 'FORMER', className: 'status-former', note: channel.workNote || 'Работа завершена по решению стримера' },
-    former_inactive: { label: 'FORMER', className: 'status-inactive', note: channel.workNote || 'Работа завершена из-за неактивности' },
-    former_access: { label: 'FORMER', className: 'status-former', note: channel.workNote || 'Работа завершена после потери доступа к каналу' },
-    temporarily_removed: { label: 'TEMPORARY', className: 'status-temporary', note: channel.workNote || 'Временно не модерирую канал' },
-    deleted: { label: 'DELETED', className: 'status-deleted', note: channel.workNote || 'Канал удалён' }
-  };
-  return map[status] || map.active;
-};
-
-const formatStarted = (channel) => {
-  if (!channel.started) return `С ${channel.year}`;
-  const parts = channel.started.split('-');
-  if (parts.length !== 3) return channel.started;
-  return `${parts[2]}.${parts[1]}.${parts[0]}`;
-};
-
-const savedAvatar = (username) => {
-  try { return sessionStorage.getItem(`${AVATAR_CACHE_PREFIX}${username.toLowerCase()}`) || ''; } catch { return ''; }
-};
-
-function avatarMarkup(channel) {
-  const source = channel.avatar?.trim() || savedAvatar(channel.username);
-  if (source) return `<img class="channel-avatar-image" data-avatar-for="${escapeHtml(channel.username)}" src="${escapeHtml(source)}" alt="Аватар @${escapeHtml(channel.username)}" loading="lazy" decoding="async">`;
-  return `<span class="channel-avatar-fallback" data-avatar-for="${escapeHtml(channel.username)}" aria-hidden="true">${escapeHtml(channel.username.slice(0, 2).toUpperCase())}</span>`;
-}
-
-const servicesMarkup = (services = []) => services.length
-  ? `<div class="channel-services">${services.slice(0, 5).map((service) => `<span>${escapeHtml(service)}</span>`).join('')}</div>`
-  : '';
-
-function cardMarkup(channel) {
-  const work = getWorkStatus(channel);
-  const role = channel.role || 'Moderator';
-  const platform = channel.platform || 'Twitch';
-  const displayName = channel.displayName?.trim() || `@${channel.username}`;
-  const description = channel.description?.trim() || 'Twitch-канал из модераторского портфолио Lew3l1.';
-
-  return `
-    <article class="channel-card" data-status="${escapeHtml(work.label.toLowerCase())}" data-username="${escapeHtml(channel.username)}">
-      <div class="channel-card-top">
-        <div class="channel-avatar" data-avatar-host="${escapeHtml(channel.username)}">${avatarMarkup(channel)}</div>
-        <div class="channel-name">
-          <strong>${escapeHtml(displayName)}</strong>
-          <span>@${escapeHtml(channel.username)} · ${escapeHtml(platform)}</span>
-        </div>
-        <span class="channel-status ${work.className}">${work.label}</span>
-      </div>
-
-      <div class="channel-card-body">
-        <div class="channel-meta-grid">
-          <div><span>ROLE</span><strong>${escapeHtml(role)}</strong></div>
-          <div><span>WORK</span><strong>${escapeHtml(work.label === 'ACTIVE' ? 'Сейчас' : work.label === 'TEMPORARY' ? 'Временно' : 'Завершена')}</strong></div>
-          <div><span>STARTED</span><strong>${escapeHtml(formatStarted(channel))}</strong></div>
-          <div><span>PLATFORM</span><strong>${escapeHtml(platform)}</strong></div>
-        </div>
-        <div class="channel-description-block"><span>ABOUT</span><p>${escapeHtml(description)}</p></div>
-        ${servicesMarkup(channel.services)}
-        <div class="channel-status-note ${work.className}">${escapeHtml(work.note)}</div>
-      </div>
-
-      <div class="channel-card-footer">
-        <span>@${escapeHtml(channel.username)}</span>
-        <a class="channel-link" href="${escapeHtml(channel.url || `https://twitch.tv/${channel.username}`)}" target="_blank" rel="noopener noreferrer" aria-label="Открыть Twitch канал @${escapeHtml(channel.username)}">Twitch ↗</a>
-      </div>
-    </article>`;
-}
-
-async function resolveTwitchAvatar(username) {
-  const cached = savedAvatar(username);
-  if (cached) return cached;
-
-  const response = await fetch(`https://decapi.me/twitch/avatar/${encodeURIComponent(username)}`, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Avatar HTTP ${response.status}`);
-  const url = (await response.text()).trim();
-  if (!/^https?:\/\//i.test(url)) throw new Error('No avatar URL returned');
-  try { sessionStorage.setItem(`${AVATAR_CACHE_PREFIX}${username.toLowerCase()}`, url); } catch {}
-  return url;
-}
-
-async function hydrateVisibleAvatars() {
-  const hosts = [...document.querySelectorAll('[data-avatar-host]')];
-  const queue = hosts.filter((host) => host.dataset.resolved !== 'true');
-  const workers = Array.from({ length: Math.min(6, queue.length) }, async () => {
-    while (queue.length) {
-      const host = queue.shift();
-      if (!host) return;
-      const username = host.dataset.avatarHost;
-      try {
-        const url = await resolveTwitchAvatar(username);
-        host.innerHTML = `<img class="channel-avatar-image" src="${escapeHtml(url)}" alt="Аватар @${escapeHtml(username)}" loading="lazy" decoding="async">`;
-      } catch {
-        host.innerHTML = `<span class="channel-avatar-fallback" aria-hidden="true">${escapeHtml(username.slice(0, 2).toUpperCase())}</span>`;
-      }
-      host.dataset.resolved = 'true';
-    }
-  });
-  await Promise.all(workers);
-}
-
-function render() {
-  const query = search.value.trim().toLowerCase();
-  const visible = channels.filter((channel) => {
-    if (HIDDEN_USERNAMES.has(String(channel.username).toLowerCase())) return false;
-    const matchesFilter = filter === 'all' || channel.year === filter;
-    const searchable = `${channel.username} ${channel.displayName || ''} ${channel.description || ''} ${channel.role || ''}`.toLowerCase();
-    return matchesFilter && searchable.includes(query);
-  });
-
-  grid.setAttribute('aria-busy', 'false');
-  grid.innerHTML = visible.length ? visible.map(cardMarkup).join('') : '<div class="empty-state"><strong>Ничего не найдено</strong><span>Попробуй другой запрос или сбрось фильтр.</span></div>';
-  if (visible.length) hydrateVisibleAvatars();
-}
-
-async function init() {
-  try {
-    const response = await fetch('data/streamers.json', { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    channels = await response.json();
-    const publicChannels = channels.filter((channel) => !HIDDEN_USERNAMES.has(String(channel.username).toLowerCase()));
-    totalElement.textContent = String(publicChannels.length);
-    const years = [...new Set(publicChannels.map((channel) => Number(channel.year)).filter(Boolean))].sort((a, b) => a - b);
-    if (totalYearsElement && years.length) totalYearsElement.textContent = `${years[0]}–${years[years.length - 1]}`;
-    render();
-  } catch (error) {
-    grid.setAttribute('aria-busy', 'false');
-    grid.innerHTML = '<div class="empty-state"><strong>База каналов недоступна</strong><span>Проверь загрузку data/streamers.json.</span></div>';
-    console.error('[Lew3l1] Failed to load streamer data:', error);
-  }
-}
-
-filterButtons.forEach((button) => button.addEventListener('click', () => {
-  filter = button.dataset.filter || 'all';
-  filterButtons.forEach((item) => {
-    const active = item === button;
-    item.setAttribute('aria-pressed', String(active));
-    item.classList.toggle('is-active', active);
-  });
-  render();
-}));
-
-search.addEventListener('input', render);
-init();
+const grid=document.querySelector('#channelGrid');
+const search=document.querySelector('#channelSearch');
+const filterButtons=[...document.querySelectorAll('[data-filter]')];
+const totalElement=document.querySelector('#channelTotal');
+const totalYearsElement=document.querySelector('#channelYears');
+let channels=[];let filter='all';
+const HIDDEN_USERNAMES=new Set(['emochkka']);
+const AVATAR_CACHE_PREFIX='lew3l1.twitch.avatar.';
+const esc=v=>String(v??'').replace(/[&<>\'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const workStatus=c=>({
+ active:{label:'ACTIVE',className:'status-active',note:'Работаю с каналом'},
+ former_self:{label:'FORMER',className:'status-former',note:c.workNote||'Снялся по своим причинам с поста модератора'},
+ former_streamer:{label:'FORMER',className:'status-former',note:c.workNote||'Работа завершена по решению стримера'},
+ former_inactive:{label:'FORMER',className:'status-inactive',note:c.workNote||'Работа завершена из-за неактивности'},
+ former_access:{label:'FORMER',className:'status-former',note:c.workNote||'Работа завершена после потери доступа к каналу'},
+ temporarily_removed:{label:'TEMPORARY',className:'status-temporary',note:c.workNote||'Временно не модерирую канал'},
+ deleted:{label:'DELETED',className:'status-deleted',note:c.workNote||'Канал удалён'}
+}[c.workStatus||'active']||{label:'ACTIVE',className:'status-active',note:'Работаю с каналом'});
+const started=c=>c.started?((p=c.started.split('-')).length===3?`${p[2]}.${p[1]}.${p[0]}`:c.started):`С ${c.year}`;
+const savedAvatar=u=>{try{return sessionStorage.getItem(`${AVATAR_CACHE_PREFIX}${u.toLowerCase()}`)||''}catch{return''}};
+const services=s=>s?.length?`<div class="channel-services">${s.slice(0,5).map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:'';
+function card(c){const w=workStatus(c),role=c.role||'Moderator',platform=c.platform||'Twitch',name=c.displayName?.trim()||`@${c.username}`,desc=c.description?.trim()||'Twitch-канал из модераторского портфолио Lew3l1.';return `<article class="channel-card"><div class="channel-card-top"><div class="channel-avatar" data-avatar-host="${esc(c.username)}">${savedAvatar(c.username)?`<img class="channel-avatar-image" src="${esc(savedAvatar(c.username))}" alt="Аватар @${esc(c.username)}">`:`<span class="channel-avatar-fallback">${esc(c.username.slice(0,2).toUpperCase())}</span>`}</div><div class="channel-name"><strong>${esc(name)}</strong><span>@${esc(c.username)} · ${esc(platform)}</span></div><span class="channel-status ${w.className}">${w.label}</span></div><div class="channel-card-body"><div class="channel-meta-grid"><div><span>ROLE</span><strong>${esc(role)}</strong></div><div><span>WORK</span><strong>${w.label==='ACTIVE'?'Сейчас':w.label==='TEMPORARY'?'Временно':'Завершена'}</strong></div><div><span>STARTED</span><strong>${esc(started(c))}</strong></div><div><span>PLATFORM</span><strong>${esc(platform)}</strong></div></div><div class="channel-description-block"><span>ABOUT</span><p>${esc(desc)}</p></div>${services(c.services)}<div class="channel-status-note ${w.className}">${esc(w.note)}</div></div><div class="channel-card-footer"><span>@${esc(c.username)}</span><a class="channel-link" href="${esc(c.url||`https://twitch.tv/${c.username}`)}" target="_blank" rel="noopener noreferrer">Twitch ↗</a></div></article>`}
+async function avatar(u){const cached=savedAvatar(u);if(cached)return cached;const r=await fetch(`https://decapi.me/twitch/avatar/${encodeURIComponent(u)}`);if(!r.ok)throw new Error('avatar');const url=(await r.text()).trim();if(!/^https?:\/\//i.test(url))throw new Error('avatar');try{sessionStorage.setItem(`${AVATAR_CACHE_PREFIX}${u.toLowerCase()}`,url)}catch{}return url}
+async function hydrate(){await Promise.all([...document.querySelectorAll('[data-avatar-host]')].map(async host=>{try{const u=host.dataset.avatarHost, url=await avatar(u);host.innerHTML=`<img class="channel-avatar-image" src="${esc(url)}" alt="Аватар @${esc(u)}" loading="lazy">`}catch{}}))}
+function render(){const q=search.value.trim().toLowerCase();const visible=channels.filter(c=>!HIDDEN_USERNAMES.has(String(c.username).toLowerCase())&&(filter==='all'||c.year===filter)&&`${c.username} ${c.displayName||''} ${c.description||''} ${c.role||''}`.toLowerCase().includes(q));grid.innerHTML=visible.length?visible.map(card).join(''):'<div class="empty-state"><strong>Ничего не найдено</strong><span>Попробуй другой запрос или сбрось фильтр.</span></div>';grid.setAttribute('aria-busy','false');if(visible.length)hydrate()}
+async function init(){try{const r=await fetch('data/streamers.json',{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status}`);channels=await r.json();channels=channels.map(c=>String(c.username).toLowerCase()==='yo_kris'?{...c,username:'yo_kris_',url:'https://twitch.tv/yo_kris_'}:c);const pub=channels.filter(c=>!HIDDEN_USERNAMES.has(String(c.username).toLowerCase()));totalElement.textContent=pub.length;const years=[...new Set(pub.map(c=>Number(c.year)).filter(Boolean))].sort((a,b)=>a-b);if(years.length)totalYearsElement.textContent=`${years[0]}–${years[years.length-1]}`;render()}catch(e){grid.innerHTML='<div class="empty-state"><strong>База каналов недоступна</strong><span>Проверь загрузку data/streamers.json.</span></div>';grid.setAttribute('aria-busy','false');console.error(e)}}
+filterButtons.forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter||'all';filterButtons.forEach(x=>{const active=x===b;x.setAttribute('aria-pressed',String(active));x.classList.toggle('is-active',active)});render()}));
+search.addEventListener('input',render);init();
