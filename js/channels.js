@@ -6,7 +6,7 @@ let channels = [];
 let filter = 'all';
 
 const AVATAR_CACHE_PREFIX = 'lew3l1.twitch.avatar.';
-const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (char) => ({
+const escapeHtml = (value = '') => String(value).replace(/[&<>\'"]/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;',
   "'": '&#39;', '"': '&quot;'
 }[char]));
@@ -29,8 +29,7 @@ const formatStarted = (channel) => {
 
 const savedAvatar = (username) => {
   try {
-    const value = sessionStorage.getItem(`${AVATAR_CACHE_PREFIX}${username.toLowerCase()}`);
-    return value || '';
+    return sessionStorage.getItem(`${AVATAR_CACHE_PREFIX}${username.toLowerCase()}`) || '';
   } catch {
     return '';
   }
@@ -38,24 +37,28 @@ const savedAvatar = (username) => {
 
 const fallbackAvatar = (username) => `https://unttv.vercel.app/users/${encodeURIComponent(username)}/avatar.png`;
 
-const initialAvatarSource = (channel) => channel.avatar?.trim() || savedAvatar(channel.username) || fallbackAvatar(channel.username);
+function avatarMarkup(channel) {
+  const source = channel.avatar?.trim() || savedAvatar(channel.username);
+  if (source) {
+    return `<img class="channel-avatar-image" data-avatar-for="${escapeHtml(channel.username)}" src="${escapeHtml(source)}" alt="Аватар @${escapeHtml(channel.username)}" loading="lazy" decoding="async">`;
+  }
+  return `<span class="channel-avatar-fallback" data-avatar-for="${escapeHtml(channel.username)}" aria-hidden="true">${escapeHtml(channel.username.slice(0, 2).toUpperCase())}</span>`;
+}
 
 function cardMarkup(channel) {
   const status = getStatus(channel);
   const role = channel.role || 'Moderator';
   const platform = channel.platform || 'Twitch';
+  const displayName = channel.displayName?.trim() || `@${channel.username}`;
   const description = channel.description?.trim() || 'Описание стримера будет добавлено после подтверждения данных.';
-  const avatar = initialAvatarSource(channel);
 
   return `
-    <article class="channel-card" data-status="${escapeHtml(status.label.toLowerCase())" data-username="${escapeHtml(channel.username)}">
+    <article class="channel-card" data-status="${escapeHtml(status.label.toLowerCase())}" data-username="${escapeHtml(channel.username)}">
       <div class="channel-card-top">
-        <div class="channel-avatar">
-          <img class="channel-avatar-image" data-avatar-for="${escapeHtml(channel.username)}" src="${escapeHtml(avatar)}" alt="Аватар @${escapeHtml(channel.username)}" loading="lazy" decoding="async">
-        </div>
+        <div class="channel-avatar" data-avatar-host="${escapeHtml(channel.username)}">${avatarMarkup(channel)}</div>
         <div class="channel-name">
-          <strong>@${escapeHtml(channel.username)}</strong>
-          <span>${escapeHtml(platform)}</span>
+          <strong>${escapeHtml(displayName)}</strong>
+          <span>@${escapeHtml(channel.username)} · ${escapeHtml(platform)}</span>
         </div>
         <span class="channel-status ${status.className}">${status.label}</span>
       </div>
@@ -81,34 +84,40 @@ async function resolveTwitchAvatar(username) {
   const cached = savedAvatar(username);
   if (cached) return cached;
 
-  try {
-    const response = await fetch(`https://decapi.me/twitch/avatar/${encodeURIComponent(username)}`, { cache: 'no-store' });
-    const url = (await response.text()).trim();
-    if (!response.ok || !url || !/^https?:\/\//i.test(url)) throw new Error('Avatar URL unavailable');
-    try { sessionStorage.setItem(cacheKey, url); } catch {}
-    return url;
-  } catch (error) {
-    return fallbackAvatar(username);
-  }
+  const response = await fetch(`https://decapi.me/twitch/avatar/${encodeURIComponent(username)}`, {
+    method: 'GET',
+    cache: 'no-store'
+  });
+  if (!response.ok) throw new Error(`Avatar HTTP ${response.status}`);
+
+  const url = (await response.text()).trim();
+  if (!/^https?:\/\//i.test(url)) throw new Error('DecAPI returned no image URL');
+
+  try { sessionStorage.setItem(cacheKey, url); } catch {}
+  return url;
 }
 
 async function hydrateVisibleAvatars() {
-  const images = [...grid.querySelectorAll('[data-avatar-for]')];
-  const queue = images.filter((img) => !img.closest('.channel-card')?.dataset.avatarResolved);
+  const hosts = [...document.querySelectorAll('[data-avatar-host]')];
+  const queue = hosts.filter((host) => host.dataset.resolved !== 'true');
   const workers = Array.from({ length: Math.min(6, queue.length) }, async () => {
     while (queue.length) {
-      const image = queue.shift();
-      if (!image) return;
-      const username = image.dataset.avatarFor;
-      const url = await resolveTwitchAvatar(username);
-      image.src = url;
-      image.onerror = () => {
-        if (!image.src.includes('loader.svg')) image.src = 'assets/loader.svg';
-      };
-      const card = image.closest('.channel-card');
-      if (card) card.dataset.avatarResolved = 'true';
+      const host = queue.shift();
+      if (!host) return;
+      const username = host.dataset.avatarHost;
+
+      try {
+        const url = await resolveTwitchAvatar(username);
+        host.innerHTML = `<img class="channel-avatar-image" src="${escapeHtml(url)}" alt="Аватар @${escapeHtml(username)}" loading="lazy" decoding="async">`;
+        host.dataset.resolved = 'true';
+      } catch (error) {
+        host.innerHTML = `<span class="channel-avatar-fallback" aria-hidden="true">${escapeHtml(username.slice(0, 2).toUpperCase())}</span>`;
+        host.dataset.resolved = 'true';
+        console.debug(`[Lew3l1] Twitch avatar unavailable for ${username}`, error);
+      }
     }
   });
+
   await Promise.all(workers);
 }
 
@@ -119,10 +128,12 @@ function render() {
     const searchable = `${channel.username} ${channel.displayName || ''} ${channel.description || ''}`.toLowerCase();
     return matchesFilter && searchable.includes(query);
   });
+
   grid.setAttribute('aria-busy', 'false');
   grid.innerHTML = visible.length
     ? visible.map(cardMarkup).join('')
     : '<div class="empty-state"><strong>Ничего не найдено</strong><span>Попробуй другой запрос или сбрось фильтр.</span></div>';
+
   if (visible.length) hydrateVisibleAvatars();
 }
 
